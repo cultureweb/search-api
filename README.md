@@ -685,3 +685,46 @@ This is it! Now it’s available here:` http://localhost:3000/api-docs`. Hit ***
 
 It's time to focus on things which block us to deploy it in production — lack of tests, clustering, and production configuration.
 
+## Step 6. Configure Unit-testing with Jest.
+
+We’re going to create tests for each part of the service: our controller, route, and provider. [**Here**]('https://basarat.gitbooks.io/typescript/docs/testing/jest.html') you can find excellent instruction for using Jest with TypeScript. We will cover the basics of it.
+
+First, let’s install it:
+```
+npm i jest @types/jest ts-jest -D
+```
+We’re installing ts-jest along with jest. It allows ***jest*** to transpile TypeScript on the fly. A flag **‘-D’** installs it as a dev dependency.
+
+Second, add **‘jest’** section in package.json:
+```
+"jest": {
+  "verbose": true,
+  "transform": {
+    "^.+\\.tsx?$": "ts-jest"
+  },
+  "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
+  "moduleFileExtensions": [
+    "ts",
+    "tsx",
+    "js",
+    "jsx",
+    "json",
+    "node"
+  ]
+},
+```
+And finally, add **‘test’** command in scripts section, replace it with the next:
+```
+"scripts": {
+  "dev": "tsc-watch --onSuccess \"node ./dist/server.js\"",
+  "test": "jest --coverage --verbose"
+},
+```
+Note, we pass **‘ — coverage’ flag —** it indicates that test coverage information should be collected and reported in the output.
+
+Now we are ready for running jest:
+
+```
+npm run test
+```
+If we have done all the steps correctly, you will see **‘No tests found’** error. Which is great! Now we are ready for actually creating tests.
