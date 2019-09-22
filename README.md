@@ -728,3 +728,71 @@ Now we are ready for running jest:
 npm run test
 ```
 If we have done all the steps correctly, you will see **‘No tests found’** error. Which is great! Now we are ready for actually creating tests.
+
+## Step 7. Adding Unit-Tests.
+
+We need tests for three different pieces of our service: routes, controller, and provider. Let’s start with the last one — the most low level here. Our provider is responsible for requesting to 3rd party service — [**opencagedata.com**]('https://opencagedata.com/').
+
+Unit-tests should be fast by definition which means we have to mock the real request with fake data. We want to test things we control and want to mock the rest we don’t.
+
+Moreover, we have to think about proper error handling . What if the real service is not available and returns ***503 error***. Having test coverage, in this case, makes our lives more comfortable in the future.
+
+### Let’s get started.
+
+First, let’s create a unit-test file for our: ***OpenCageDataProvider***.
+
+```
+touch ./src/services/search/providers/OpenCageDataProvider.test.ts
+```
+We are going to test ***getPlaces*** function from ***OpenCageDataProvider*** module, copy the following code to the file we’ve just created:
+```
+import request from "request-promise";
+import * as Provider from "./OpenCageDataProvider";
+
+jest.mock("request-promise");
+
+describe("OpenCageDataProvider", () => {
+  test("an empty query string", async () => {
+    (request as any).mockImplementation(() => '{"features": []}');
+    const result = await Provider.getPlaces("Paris");
+    expect(result).toEqual({ features: [] });
+  });
+});
+```
+Here, we first mock the whole request-promise module. And then we’re ***mocking an implementation*** of request function which is used inside our getPlaces function. If you feel shaky about the statement above [***this article***]('https://medium.com/@rickhanlonii/understanding-jest-mocks-f0046c68e53c') is definitely will help!
+
+In this example, we’re testing an empty query, and as well as the original service, it should return a valid JSON object as a string. An empty string is the only corner case here: with TypeScript, **we don’t need tests for inputs like:**
+
+`Provider.getPlaces(false)`
+`Provider.getPlaces(0)`
+`Provider.getPlaces({})`
+
+It simply won’t compile! This is just great — **TypeScript helps us to cover our methods with MUCH less code.** It feels so good.
+
+But what if the real service is not available or the response is not a valid JSON string? Let’s add a test for checking this exception:
+
+A lot of stuff is going on in only two lines:
+```
+import request from "request-promise";
+import * as Provider from "./OpenCageDataProvider";
+
+jest.mock("request-promise");
+
+describe("OpenCageDataProvider", () => {
+  test("an empty query string", async () => {
+    (request as any).mockImplementation(() => '{"features": []}');
+    const result = await Provider.getPlaces("Paris");
+    expect(result).toEqual({ features: [] });
+  });
+
+  test("an invalid non-json response", async () => {
+    (request as any).mockImplementation(() => "Service Unavailable.");
+    await expect(Provider.getPlaces("Chamonix")).rejects.toThrow(SyntaxError);
+  });
+});
+```
+1. Here again, we use mockImplementation. But this time it returns **‘Service Unavailable.’** string.
+2. Secondly rejects helps us to test a thrown exception ***SyntaxError***. This is an error which occurs when we provide an invalid argument for ***JSON.parse*** function.
+3. And finally, we have to put ***await*** keyword before expect. Since this test is asynchronous and Jest has to wait till it finishes.
+
+**An exercise:** try to create unit-tests for SearchController on your own. It’s not going to be that different from what we’ve created now.
