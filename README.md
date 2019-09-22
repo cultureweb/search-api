@@ -872,3 +872,76 @@ test("a non-existing api method", async () => {
   });
 ```
 Also, the huge plus of supertest is readability — we can see what we pass and what the result is. Tests give us the confidence and now we can move on!
+
+## Step 9. Clustering our API with PM2
+
+You might know, the Node.js event loop uses only one core of a processor to execute its code. Node.js has a cluster module to spawn child processes — worker processes. They all share the same port.
+
+But instead of spawning processes directly with the cluster module we will use [**PM2 — Process Manager for Node.js**]('https://pm2.io/runtime/'). It has great features like a load balancing and auto-restarting node instances.
+
+### Installation
+
+**PM2** is a node package, let’s install it as a local dependency:
+
+```
+npm i pm2
+```
+Now we have to configure the PM2 `.yaml` process file:
+
+- Specify how many instances we want to create.
+- The script which will be executed to start an app
+- Set the exec_mode to ***cluster***, so **PM2** know we want to load balance between each instance.
+
+Let’s create a `pm2.yaml` file:
+
+```
+touch pm2.yaml
+```
+And paste the following code:
+```
+apps:
+  - script: ./dist/server.js
+    instances: max
+    exec_mode: cluster
+```
+Finally, we have to add a command for running PM2 process file. Add the line below in the scripts section in our **package.json**:
+
+```
+"start": "npx pm2 start pm2.yaml"
+```
+Now the scripts section looks like this:
+```
+"scripts": {
+  "dev": "tsc-watch --onSuccess \"node ./dist/server.js\"",
+  "start": "npx pm2 start pm2.yaml",
+  "test": "jest"
+}
+```
+There a few more things we have to do before we can run our production-ready service:
+
+- Compile .ts source files into the ./dist folder, so PM2 will be able to run our `./dist/server.js file`.
+
+- Specify NODE_ENV to production.
+
+Actually, when we execute `npm run dev`, we already create the ./dist folder. But we‘re making it through the development process but what if our colleague wants only npm clone and run it?
+
+The fastest way is to add an npm postinstall hook. It runs every time after `npm install` execution. All we have to do — run TypeScript compiler with our options, let’s add this hook in our `package.json`. Update the scripts section with it:
+
+```
+"scripts": {
+  "postinstall": "npx tsc",
+  "dev": "tsc-watch --onSuccess \"node ./dist/server.js\"",
+  "start": "npx pm2 start pm2.yaml",
+  "test": "jest --coverage --verbose"
+}
+```
+And last but not least, we have to force all our dependencies, to use production mode. For example, [**it will boost the express.js performance up to 3 times!**]('https://www.dynatrace.com/news/blog/the-drastic-effects-of-omitting-node-env-in-your-express-js-applications/')
+
+Let’s add this line to our .env file:
+```
+NODE_ENV=production
+```
+Now, for starting Node.js in production all we have to do is to run:
+```
+npm run start
+```
