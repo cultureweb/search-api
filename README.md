@@ -796,3 +796,79 @@ describe("OpenCageDataProvider", () => {
 3. And finally, we have to put ***await*** keyword before expect. Since this test is asynchronous and Jest has to wait till it finishes.
 
 **An exercise:** try to create unit-tests for SearchController on your own. It’s not going to be that different from what we’ve created now.
+
+## Step 8. Next Level: Adding Integration Tests with Supertest.
+
+Unit tests are important, but when it comes to developing API, we badly need tests for our API endpoints. I’m getting tired very quickly to check Postman every time I change something in the code.
+
+We will use [***supertest***]('https://github.com/visionmedia/supertest') as an integration test tool. There are a couple of benefits which makes it super appealing to use:
+
+1. It’s very easy to use, it can’t be any simpler than that.
+
+2. Works nicely with Jest.
+
+First, let’s install ***supertest***:
+```
+npm i supertest @types/supertest
+```
+Then, we’re creating `routes.test.ts` file:
+```
+touch ./src/services/search/routes.test.ts
+```
+Now, let’s add this code in `routes.test.ts`:
+
+```
+import express, { Router } from "express";
+import request from "supertest";
+import { applyMiddleware, applyRoutes } from "../../utils";
+import promiseRequest from "request-promise";
+import middleware from "../../middleware";
+import errorHandlers from "../../middleware/errorHandlers";
+import routes from "../../services/search/routes";
+
+jest.mock("request-promise");
+(promiseRequest as any).mockImplementation(() => '{"features": []}');
+
+describe("routes", () => {
+  let router: Router;
+
+  beforeEach(() => {
+    router = express();
+    applyMiddleware(middleware, router);
+    applyRoutes(routes, router);
+    applyMiddleware(errorHandlers, router);
+  });
+
+  test("a valid string query", async () => {
+    const response = await request(router).get("/api/v1/search?q=Cham");
+    expect(response.status).toEqual(200);
+  });
+  ```
+  This is so simple! Let’s go throughout this code:
+
+1. Again, we mock request-promise, we don’t want to make a network request.
+
+2. We create an express router and apply all middleware, routes, and error handlers the same way we did it in our `server.ts`.
+
+3. We use request function from the supertest module. Note, we don’t create an HTTP server. We only provide an Express router and supertest creates it internally. Then makes a GET request with our data.
+
+4. We’ve got a `response` object which contains both data and a status code.
+
+As you can see, **creating integration tests** for the API is not any complex than unit tests for our provider. But, this time we test the whole chain of middleware, routes, and error handlers!
+
+As the last step, we can add integration tests for invalid queries:
+
+add this code in `routes.test.ts`:
+
+```
+test("a non-existing api method", async () => {
+    const response = await request(router).get("/api/v11/search");
+    expect(response.status).toEqual(404);
+  });
+  
+  test("an empty string", async () => {
+    const response = await request(router).get("/api/v1/search?q=");
+    expect(response.status).toEqual(400);
+  });
+```
+Also, the huge plus of supertest is readability — we can see what we pass and what the result is. Tests give us the confidence and now we can move on!
